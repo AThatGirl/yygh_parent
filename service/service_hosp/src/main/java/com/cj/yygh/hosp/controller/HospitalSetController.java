@@ -27,22 +27,23 @@ import java.util.Random;
  * @since 2023-05-06
  */
 @RestController
-@RequestMapping("/hosp/hospital-set")
+@RequestMapping("/admin/hosp/hospital-set")
+@CrossOrigin
 public class HospitalSetController {
 
     @Autowired
     private HospitalSetService hospitalSetService;
 
-    @GetMapping("findAll")
+    @GetMapping("/findAll")
     @ApiOperation("查询所有医院")
     public R findAll() {
         List<HospitalSet> list = hospitalSetService.list();
         return R.ok().data("list", list);
     }
 
-    @DeleteMapping("/remove/{sid}")
+    @DeleteMapping("/remove/{id}")
     @ApiOperation("根据id删除医院")
-    public R removeById(@ApiParam(name = "sid", value = "医院id", required = true) @PathVariable("sid") Integer id) {
+    public R removeById(@ApiParam(name = "id", value = "医院id", required = true) @PathVariable("id") Integer id) {
         boolean b = hospitalSetService.removeById(id);
         return R.ok();
     }
@@ -69,7 +70,7 @@ public class HospitalSetController {
     }
 
     @ApiOperation(value = "新增医院设置")
-    @PostMapping("saveHospSet")
+    @PostMapping("/saveHospSet")
     public R save(
             @ApiParam(name = "hospitalSet", value = "医院设置对象", required = true)
             @RequestBody HospitalSet hospitalSet) {
@@ -83,7 +84,7 @@ public class HospitalSetController {
     }
 
     @ApiOperation(value = "分页条件医院设置列表")
-    @PostMapping("{page}/{limit}")
+    @PostMapping("/{page}/{limit}")
     public R pageQuery(@ApiParam(name = "page", value = "当前页码", required = true)
                        @PathVariable Long page,
                        @ApiParam(name = "limit", value = "每页记录数", required = true)
@@ -109,7 +110,7 @@ public class HospitalSetController {
     }
 
     //批量删除医院设置
-    @DeleteMapping("batchRemove")
+    @DeleteMapping("/batchRemove")
     public R batchRemoveHospitalSet(@RequestBody List<Long> idList) {
         hospitalSetService.removeByIds(idList);
         return R.ok();
@@ -117,7 +118,7 @@ public class HospitalSetController {
 
     // 医院设置锁定和解锁
     @ApiOperation("医院设置锁定和解锁")
-    @PutMapping("lockHospitalSet/{id}/{status}")
+    @PutMapping("/lockHospitalSet/{id}/{status}")
     public R lockHospitalSet(@PathVariable Long id,
                              @PathVariable Integer status) {
         //根据id查询医院设置信息
