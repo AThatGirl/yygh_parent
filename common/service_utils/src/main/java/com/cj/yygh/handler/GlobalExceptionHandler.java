@@ -19,7 +19,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public R error(Exception ex) {
         ex.printStackTrace();
-        log.error("全局异常", ex.getMessage());
+        log.error("全局异常{}", ex.getMessage());
         return R.error();
     }
 

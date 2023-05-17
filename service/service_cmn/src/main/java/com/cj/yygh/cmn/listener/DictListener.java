@@ -7,9 +7,6 @@ import com.cj.yygh.model.cmn.Dict;
 import com.cj.yygh.vo.cmn.DictEeVo;
 import org.springframework.beans.BeanUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * DictListener
  * description:

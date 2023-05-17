@@ -1,4 +1,4 @@
-package com.cj.yygh.hosp.md5;
+package com.cj.yygh.hosp.util;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

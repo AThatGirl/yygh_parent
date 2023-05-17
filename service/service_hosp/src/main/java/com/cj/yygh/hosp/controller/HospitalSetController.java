@@ -3,14 +3,13 @@ package com.cj.yygh.hosp.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.cj.yygh.hosp.md5.MD5;
+import com.cj.yygh.hosp.util.MD5;
 import com.cj.yygh.hosp.service.HospitalSetService;
 import com.cj.yygh.model.hosp.HospitalSet;
 import com.cj.yygh.result.R;
 import com.cj.yygh.vo.hosp.HospitalSetQueryVo;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
-import io.swagger.models.auth.In;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
