@@ -24,4 +24,13 @@ public interface DictService extends IService<Dict> {
     void exportExcel(HttpServletResponse response) throws IOException;
 
     void importData(MultipartFile file) throws IOException;
+
+    /**
+     * 根据上级编码与值获取数据字典名称
+     * @param parentDictCode
+     * @param value
+     */
+    String getNameByParentDictCodeAndValue(String parentDictCode, String value);
+
+    List<Dict> findByDictCode(String dictCode);
 }

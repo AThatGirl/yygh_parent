@@ -6,11 +6,13 @@ import com.cj.yygh.cmn.listener.DictListener;
 import com.cj.yygh.cmn.mapper.DictMapper;
 import com.cj.yygh.cmn.service.DictService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.cj.yygh.exception.YyghException;
 import com.cj.yygh.model.cmn.Dict;
 import com.cj.yygh.vo.cmn.DictEeVo;
 import org.springframework.beans.BeanUtils;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
@@ -72,6 +74,48 @@ public class DictServiceImpl extends ServiceImpl<DictMapper, Dict> implements Di
     @Override
     public void importData(MultipartFile file) throws IOException {
         EasyExcel.read(file.getInputStream(), DictEeVo.class, new DictListener(baseMapper)).sheet().doRead();
+    }
+
+    @Override
+    public String getNameByParentDictCodeAndValue(String parentDictCode, String value) {
+        //判断parentDictCode是否为空
+        //如果为空，就只根据value查询
+        if (StringUtils.isEmpty(parentDictCode)) {
+            QueryWrapper<Dict> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("value", value);
+            Dict dict = baseMapper.selectOne(queryWrapper);
+            if (dict != null) {
+                return dict.getName();
+            }
+        } else {
+            //如果不为空，就先通过parentDictCode把dict对象查询出来，dict的id和value查询
+            QueryWrapper<Dict> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("dict_code", parentDictCode);
+            Dict dict = baseMapper.selectOne(queryWrapper);
+            if (dict == null) {
+                throw new YyghException(20001, "查询失败");
+            }
+
+            QueryWrapper<Dict> newWrapper = new QueryWrapper<>();
+            newWrapper.eq("parent_id", dict.getId()).eq("value", value);
+            Dict newDict = baseMapper.selectOne(newWrapper);
+            if (newDict != null) {
+                return newDict.getName();
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public List<Dict> findByDictCode(String dictCode) {
+
+        Dict dict = baseMapper.selectOne(new QueryWrapper<Dict>().eq("dict_code", dictCode));
+        if (dict != null){
+            Long parentId = dict.getId();
+            List<Dict> dicts = baseMapper.selectList(new QueryWrapper<Dict>().eq("parent_id", parentId));
+            return dicts;
+        }
+        return null;
     }
 
     //判断有没有子元素

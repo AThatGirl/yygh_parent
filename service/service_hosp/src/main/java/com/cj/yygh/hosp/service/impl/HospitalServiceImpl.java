@@ -1,15 +1,20 @@
 package com.cj.yygh.hosp.service.impl;
 
 import com.alibaba.fastjson.JSONObject;
+import com.cj.yygh.cmn.client.DictFeignClient;
 import com.cj.yygh.constants.HospitalConstants;
+import com.cj.yygh.enums.DictEnum;
 import com.cj.yygh.hosp.repository.HospitalRepository;
 import com.cj.yygh.hosp.service.HospitalService;
-import com.cj.yygh.model.hosp.Department;
 import com.cj.yygh.model.hosp.Hospital;
+import com.cj.yygh.vo.hosp.HospitalQueryVo;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -23,6 +28,9 @@ public class HospitalServiceImpl implements HospitalService {
 
     @Autowired
     private HospitalRepository hospitalRepository;
+
+    @Autowired
+    private DictFeignClient dictFeignClient;
 
 
     @Override
@@ -53,6 +61,65 @@ public class HospitalServiceImpl implements HospitalService {
     @Override
     public Hospital findByHoscode(String hoscode) {
         return hospitalRepository.findByHoscode(hoscode);
+    }
+
+    //做带条件查询的分页
+    @Override
+    public Page<Hospital> selectPage(Integer page, Integer limit, HospitalQueryVo hospitalQueryVo) {
+
+        PageRequest pageRequest = PageRequest.of(page - 1, limit, Sort.by(Sort.Direction.ASC, "createTime"));
+        Hospital hospital = new Hospital();
+
+        BeanUtils.copyProperties(hospitalQueryVo, hospital);
+
+        //创建匹配器，即如何使用查询条件
+        ExampleMatcher matcher = ExampleMatcher.matching() //构建对象
+                .withStringMatcher(ExampleMatcher.StringMatcher.CONTAINING) //改变默认字符串匹配方式；模糊查询
+                .withIgnoreCase(true); //改变默认大小写忽略方式：忽略大小写
+        Example<Hospital> example = Example.of(hospital, matcher);
+        Page<Hospital> all = hospitalRepository.findAll(example, pageRequest);
+        //获取里面的对象
+        all.getContent().stream().forEach(item -> {
+            this.packHospital(item);
+        });
+
+
+        return all;
+    }
+
+    @Override
+    public void updateStatus(String id, Integer status) {
+        if (status == 0 || status == 1) {
+            Hospital hospital = hospitalRepository.findById(id).get();
+            hospital.setStatus(status);
+            hospital.setUpdateTime(new Date());
+            hospitalRepository.save(hospital);
+        }
+    }
+
+    @Override
+    public Map<String, Object> getHospitalDetailById(String id) {
+        Hospital hospital = hospitalRepository.findById(id).get();
+        hospital = this.packHospital(hospital);
+        Map<String, Object> map = new HashMap<>();
+        map.put("hospital", hospital);
+        map.put("bookingRule", hospital.getBookingRule());
+        //不需要重复返回
+        hospital.setBookingRule(null);
+        return map;
+    }
+
+    private Hospital packHospital(Hospital item) {
+        String hospitalLevel = dictFeignClient.getName(DictEnum.HOSTYPE.getDictCode(), item.getHostype());
+
+        String provinceName = dictFeignClient.getName(item.getProvinceCode());
+        String cityName = dictFeignClient.getName(item.getCityCode());
+        String districtName = dictFeignClient.getName(item.getDistrictCode());
+
+        Map<String, Object> map = item.getParam();
+        map.put("hostypeString", hospitalLevel);
+        map.put("fullAddress", provinceName + cityName + districtName + item.getAddress());
+        return item;
     }
 
 }
