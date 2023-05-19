@@ -8,6 +8,7 @@ import com.cj.yygh.hosp.service.HospitalSetService;
 import com.cj.yygh.model.hosp.HospitalSet;
 import com.cj.yygh.result.R;
 import com.cj.yygh.vo.hosp.HospitalSetQueryVo;
+import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +28,8 @@ import java.util.Random;
  */
 @RestController
 @RequestMapping("/admin/hosp/hospital-set")
-@CrossOrigin
+@Api(tags = "医院集合")
+//@CrossOrigin
 public class HospitalSetController {
 
     @Autowired

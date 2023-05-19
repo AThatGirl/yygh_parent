@@ -5,6 +5,7 @@ import com.cj.yygh.constants.HospitalConstants;
 import com.cj.yygh.hosp.repository.DepartmentRepository;
 import com.cj.yygh.hosp.service.DepartmentService;
 import com.cj.yygh.model.hosp.Department;
+import com.cj.yygh.vo.hosp.DepartmentVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;
@@ -12,8 +13,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * DepartmentServiceImpl
@@ -70,6 +74,45 @@ public class DepartmentServiceImpl implements DepartmentService {
             departmentRepository.deleteById(department.getId());
         }
 
+    }
+
+    @Override
+    public List<DepartmentVo> getAllDepts(String hoscode) {
+
+        Department department = new Department();
+        department.setHoscode(hoscode);
+        Example<Department> example = Example.of(department);
+
+        List<Department> all = departmentRepository.findAll(example);
+        //组装前端所需要的数据
+        //key：大科室编号，value：当前大科室所有子科室的列表
+        Map<String, List<Department>> map = all.stream().collect(Collectors.groupingBy(Department::getBigcode));
+
+        List<DepartmentVo> bigDeptList = new ArrayList<>();
+        for (Map.Entry<String, List<Department>> entry : map.entrySet()) {
+            DepartmentVo departmentVo = new DepartmentVo();
+            String bigCode = entry.getKey();
+            //子科室列表
+            List<Department> childDeptList = entry.getValue();
+            departmentVo.setDepcode(bigCode);
+            departmentVo.setDepname(childDeptList.get(0).getBigname());
+            //大科室的children属性
+            List<DepartmentVo> children = new ArrayList<>();
+
+            //遍历子科室的属性，设置值
+            for (Department department1 : childDeptList) {
+                DepartmentVo child = new DepartmentVo();
+                String depcode = department1.getDepcode();
+                String depname = department1.getDepname();
+                child.setDepcode(depcode);
+                child.setDepname(depname);
+                children.add(child);
+            }
+
+            bigDeptList.add(departmentVo);
+            departmentVo.setChildren(children);
+        }
+        return bigDeptList;
     }
 
 }

@@ -26,7 +26,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/admin/cmn/dict")
-@CrossOrigin
+//@CrossOrigin
 @Api("字典表")
 public class DictController {
 

@@ -10,21 +10,18 @@ import com.cj.yygh.hosp.util.MD5;
 import com.cj.yygh.model.hosp.Department;
 import com.cj.yygh.model.hosp.Hospital;
 import com.cj.yygh.model.hosp.Schedule;
-import com.cj.yygh.result.R;
 import com.cj.yygh.result.Result;
 import com.cj.yygh.vo.hosp.ScheduleQueryVo;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
-import java.awt.print.Pageable;
 import java.util.Map;
 
 /**
@@ -64,7 +61,7 @@ public class HospitalApiController {
         Map<String, Object> paramMap = HttpRequestHelper.switchMap(request.getParameterMap());
         //TODO 校验参数
         String hoscode = (String) paramMap.get("hoscode");
-//非必填
+        //非必填
         String depcode = (String) paramMap.get("depcode");
         int page = StringUtils.isEmpty(paramMap.get("page")) ? 1 : Integer.parseInt((String) paramMap.get("page"));
         int limit = StringUtils.isEmpty(paramMap.get("limit")) ? 10 : Integer.parseInt((String) paramMap.get("limit"));
