@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -71,7 +72,6 @@ public class HospitalServiceImpl implements HospitalService {
         Hospital hospital = new Hospital();
 
         BeanUtils.copyProperties(hospitalQueryVo, hospital);
-
         //创建匹配器，即如何使用查询条件
         ExampleMatcher matcher = ExampleMatcher.matching() //构建对象
                 .withStringMatcher(ExampleMatcher.StringMatcher.CONTAINING) //改变默认字符串匹配方式；模糊查询
@@ -107,6 +107,12 @@ public class HospitalServiceImpl implements HospitalService {
         //不需要重复返回
         hospital.setBookingRule(null);
         return map;
+    }
+
+    @Override
+    public List<Hospital> findByNameLike(String name) {
+
+        return hospitalRepository.findByHosnameLike(name);
     }
 
     private Hospital packHospital(Hospital item) {

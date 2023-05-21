@@ -17,6 +17,10 @@ spring:
           uri: lb://service-cmn
           predicates:
             - Path=/*/cmn/** # 路径匹配
+        - id: service-user
+          uri: lb://service-user
+          predicates:
+            - Path=/*/userinfo/** # 路径匹配
 
     nacos:
       discovery:
