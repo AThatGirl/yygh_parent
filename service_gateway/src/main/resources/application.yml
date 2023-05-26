@@ -21,7 +21,14 @@ spring:
           uri: lb://service-user
           predicates:
             - Path=/*/userinfo/** # 路径匹配
-
+        - id: service-msm
+          uri: lb://service-msm
+          predicates:
+            - Path=/*/msm/** # 路径匹配
+        - id: service-user
+          uri: lb://service-user
+          predicates:
+            - Path=/*/ucenter/** # 路径匹配
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848

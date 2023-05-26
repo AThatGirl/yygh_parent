@@ -9,6 +9,9 @@ import com.cj.yygh.user.mapper.UserInfoMapper;
 import com.cj.yygh.user.service.UserInfoService;
 import com.cj.yygh.utils.JwtHelper;
 import com.cj.yygh.vo.user.LoginVo;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -27,6 +30,10 @@ import java.util.Map;
 @Service
 public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> implements UserInfoService {
 
+
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
     @Override
     public Map<String, Object> login(LoginVo loginVo) {
 
@@ -37,7 +44,10 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         if (StringUtils.isEmpty(phone) || StringUtils.isEmpty(code)) {
             throw new YyghException(20001, "用户名或验证码不能为空");
         }
-        //TODO redis验证码比较
+        String redisCode = redisTemplate.opsForValue().get(phone);
+        if (!code.equals(redisCode)) {
+            throw new YyghException(20001, "验证码错误");
+        }
 
         //判断是不是首次登录，如果是，完成自动注册
         UserInfo userInfo = baseMapper.selectOne(new QueryWrapper<UserInfo>().eq("phone", phone));
@@ -47,7 +57,26 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
             userInfo.setStatus(UserConstants.STATUS_NORMAL);
             userInfo.setCreateTime(new Date());
             baseMapper.insert(userInfo);
+        } else {
+
+            UserInfo userInfoFinal = new UserInfo();
+            UserInfo u1 = baseMapper.selectOne(new QueryWrapper<UserInfo>().eq("phone", phone));
+            if (u1 != null) {
+                BeanUtils.copyProperties(u1, userInfoFinal);
+                baseMapper.delete(new QueryWrapper<UserInfo>().eq("phone", phone));
+            }else {
+                userInfoFinal.setPhone(phone);
+            }
+
+            userInfo = baseMapper.selectOne(new QueryWrapper<UserInfo>().eq("openid", loginVo.getOpenid()));
+            userInfoFinal.setId(userInfo.getId());
+            userInfoFinal.setNickName(userInfoFinal.getNickName());
+            userInfoFinal.setOpenid(userInfo.getOpenid());
+            userInfoFinal.setStatus(userInfo.getStatus());
+            baseMapper.updateById(userInfo);
         }
+
+
         //判断用户状态
         if (userInfo.getStatus().equals(UserConstants.STATUS_CLOCKING)) {
             throw new YyghException(20001, "该用户已经被禁用");
@@ -59,7 +88,7 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         if (StringUtils.isEmpty(name)) {
             name = userInfo.getNickName();
         }
-        if (StringUtils.isEmpty(name)){
+        if (StringUtils.isEmpty(name)) {
             name = userInfo.getPhone();
         }
 
@@ -67,5 +96,10 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         String token = JwtHelper.createToken(userInfo.getId(), userInfo.getName());
         map.put("token", token);
         return map;
+    }
+
+    @Override
+    public UserInfo selectByOpenId(String openid) {
+        return baseMapper.selectOne(new QueryWrapper<UserInfo>().eq("openid", openid));
     }
 }

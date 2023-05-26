@@ -3,7 +3,6 @@ package com.cj.yygh.user.controller;
 
 import com.cj.yygh.result.R;
 import com.cj.yygh.user.service.UserInfoService;
-import com.cj.yygh.vo.acl.UserQueryVo;
 import com.cj.yygh.vo.user.LoginVo;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -11,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -31,6 +29,8 @@ public class UserInfoController {
 
     @Autowired
     private UserInfoService userInfoService;
+
+
 
     @ApiOperation("会员登录")
     @PostMapping("/login")
