@@ -1,9 +1,12 @@
 package com.cj.yygh.user.controller;
 
 
+import com.cj.yygh.model.user.UserInfo;
 import com.cj.yygh.result.R;
 import com.cj.yygh.user.service.UserInfoService;
+import com.cj.yygh.user.utils.AuthContextHolder;
 import com.cj.yygh.vo.user.LoginVo;
+import com.cj.yygh.vo.user.UserAuthVo;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 /**
@@ -31,6 +35,22 @@ public class UserInfoController {
     private UserInfoService userInfoService;
 
 
+    @PostMapping("/auth/userAuth")
+    public R saveUserAuth(@RequestBody UserAuthVo userAuthVo, HttpServletRequest request) {
+        Long userId = AuthContextHolder.getUserId(request);
+        userInfoService.saveUserAuth(userId, userAuthVo);
+        return R.ok();
+    }
+
+
+    @ApiOperation("获取用户id信息接口")
+    @RequestMapping("/auth/getUserInfo")
+    public R getUserInfo(HttpServletRequest request) {
+        Long userId = AuthContextHolder.getUserId(request);
+
+        UserInfo userInfo = userInfoService.selectById(userId);
+        return R.ok().data("userInfo", userInfo);
+    }
 
     @ApiOperation("会员登录")
     @PostMapping("/login")
