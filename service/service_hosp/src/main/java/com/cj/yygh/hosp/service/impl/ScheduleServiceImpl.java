@@ -2,15 +2,20 @@ package com.cj.yygh.hosp.service.impl;
 
 import com.alibaba.fastjson.JSONObject;
 import com.cj.yygh.constants.HospitalConstants;
+import com.cj.yygh.exception.YyghException;
 import com.cj.yygh.hosp.repository.ScheduleRepository;
+import com.cj.yygh.hosp.service.DepartmentService;
 import com.cj.yygh.hosp.service.HospitalService;
 import com.cj.yygh.hosp.service.ScheduleService;
+import com.cj.yygh.model.hosp.BookingRule;
+import com.cj.yygh.model.hosp.Department;
 import com.cj.yygh.model.hosp.Hospital;
 import com.cj.yygh.model.hosp.Schedule;
 import com.cj.yygh.vo.hosp.BookingScheduleRuleVo;
 import com.cj.yygh.vo.hosp.ScheduleQueryVo;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
+import org.joda.time.format.DateTimeFormat;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Example;
@@ -23,10 +28,8 @@ import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ScheduleServiceImpl implements ScheduleService {
@@ -40,6 +43,9 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Autowired
     private HospitalService hospitalService;
+
+    @Autowired
+    private DepartmentService departmentService;
 
 
     @Override
@@ -132,12 +138,161 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Override
     public List<Schedule> getDetailSchedule(String hoscode, String depcode, String workDate) {
 
-        List<Schedule> scheduleList = scheduleRepository.findByHoscodeAndDepcodeAndWorkDate(hoscode,depcode,new DateTime(workDate).toDate());
+        List<Schedule> scheduleList = scheduleRepository.findByHoscodeAndDepcodeAndWorkDate(hoscode, depcode, new DateTime(workDate).toDate());
         return scheduleList;
+    }
+
+    @Override
+    public Map<String, Object> getBookingSchedule(Integer page, Integer limit, String hoscode, String depcode) {
+        //根据医院编号获取医院信息
+        Hospital hospital = hospitalService.findByHoscode(hoscode);
+        if (hospital == null) {
+            throw new YyghException(20001, "没有相关医院信息");
+        }
+        BookingRule bookingRule = hospital.getBookingRule();
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<Date> dataPage = this.getListPage(page, limit, bookingRule);
+
+        //获取当前页时间列表
+        List<Date> records = dataPage.getRecords();
+        //获取可预约日期科室剩余预约数
+        Criteria criteria = Criteria.where("hoscode").is(hoscode).and("depcode").is(depcode).and("workDate").in(records);
+        Aggregation agg = Aggregation.newAggregation(
+                Aggregation.match(criteria),
+                Aggregation.group("workDate")//分组字段
+                        .first("workDate").as("workDate")
+                        .count().as("docCount")
+                        .sum("availableNumber").as("availableNumber")
+                        .sum("reservedNumber").as("reservedNumber")
+        );
+        AggregationResults<BookingScheduleRuleVo> aggregate = mongoTemplate.aggregate(agg, Schedule.class, BookingScheduleRuleVo.class);
+        //聚合列表
+        List<BookingScheduleRuleVo> mappedResults = aggregate.getMappedResults();
+        //转为map类型
+        Map<Date, BookingScheduleRuleVo> collect = mappedResults.stream().collect(Collectors.toMap(BookingScheduleRuleVo::getWorkDate, bookingScheduleRuleVo -> bookingScheduleRuleVo));
+
+        List<BookingScheduleRuleVo> newList = new ArrayList<>();
+        for (int i = 0; i < records.size(); i++) {
+            Date date = records.get(i);
+            BookingScheduleRuleVo bookingScheduleRuleVo = collect.get(date);
+            if (bookingScheduleRuleVo == null) {
+                bookingScheduleRuleVo = new BookingScheduleRuleVo();
+                //就诊医生人数
+                bookingScheduleRuleVo.setDocCount(HospitalConstants.DOCTOR_NUMBER_ZERO);
+                //-1表示无号
+                bookingScheduleRuleVo.setAvailableNumber(HospitalConstants.AVAILABLE_NUMBER_NOT);
+
+            }
+            bookingScheduleRuleVo.setWorkDate(date);
+            bookingScheduleRuleVo.setWorkDateMd(date);
+            //计算当前预约日期为周几
+            String dayOfWeek = this.getDayOfWeek(new DateTime(date));
+            bookingScheduleRuleVo.setDayOfWeek(dayOfWeek);
+
+            //最后一页最后一条记录为即将预约   状态 0：正常 1：即将放号 -1：当天已停止挂号
+            int len = records.size();
+            if (i == len - 1 && page == dataPage.getPages()) {
+                bookingScheduleRuleVo.setStatus(HospitalConstants.APPOINTMENT_STATUS_SOON);
+            } else {
+                bookingScheduleRuleVo.setStatus(HospitalConstants.APPOINTMENT_STATUS_NORMAL);
+            }
+            //判断第一页第一条的时间是否已经过了当天预约放号时间
+            if (i == 0 && page == 1) {
+                //获取今天放号时间
+                DateTime dateTime = this.getDateTime(new Date(), bookingRule.getStopTime());
+                if (dateTime.isBeforeNow()) {
+                    bookingScheduleRuleVo.setStatus(HospitalConstants.APPOINTMENT_STATUS_STOP);
+                }
+            }
+            newList.add(bookingScheduleRuleVo);
+
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        //可预约日期规则数据
+        result.put("bookingScheduleList", newList);
+        result.put("total", dataPage.getTotal());
+        //其他基础数据
+        Map<String, String> baseMap = new HashMap<>();
+        //医院名称
+        baseMap.put("hosname", hospitalService.findByHoscode(hoscode).getHosname());
+        //科室
+        Department department = departmentService.getDepartment(hoscode, depcode);
+        //大科室名称
+        baseMap.put("bigname", department.getBigname());
+        //科室名称
+        baseMap.put("depname", department.getDepname());
+        //月
+        baseMap.put("workDateString", new DateTime().toString("yyyy年MM月"));
+        //放号时间
+        baseMap.put("releaseTime", bookingRule.getReleaseTime());
+        //停号时间
+        baseMap.put("stopTime", bookingRule.getStopTime());
+        result.put("baseMap", baseMap);
+        Set<String> keySet = result.keySet();
+        return result;
+    }
+
+    @Override
+    public Schedule getScheduleInfo(String scheduleId) {
+
+        Schedule schedule = scheduleRepository.findById(scheduleId).get();
+        this.packageSchedule(schedule);
+        return schedule;
+    }
+
+    private void packageSchedule(Schedule schedule) {
+
+        Hospital hospital = hospitalService.findByHoscode(schedule.getHoscode());
+
+        Department department = departmentService.getDepartment(schedule.getHoscode(), schedule.getDepcode());
+        schedule.getParam().put("hosname", hospital.getHosname());
+        schedule.getParam().put("depname", department.getDepname());
+        schedule.getParam().put("dayOfWeek", this.getDayOfWeek(new DateTime(schedule.getWorkDate())));
+    }
+
+    private com.baomidou.mybatisplus.extension.plugins.pagination.Page<Date> getListPage(Integer page, Integer limit, BookingRule bookingRule) {
+        //获取今天的放号时间
+        DateTime dateTime = this.getDateTime(new Date(), bookingRule.getReleaseTime());
+        //如果当前时间过了当天放号时间，就把预约周期+1
+        Integer cycle = bookingRule.getCycle();
+        if (dateTime.isBeforeNow()) {
+            cycle = cycle + 1;
+        }
+
+        List<Date> dateList = new ArrayList<>();
+        for (int i = 0; i < cycle; i++) {
+            DateTime tmpTime = new DateTime().plusDays(i);
+            dateList.add(new DateTime(tmpTime.toString("yyyy-MM-dd")).toDate());
+        }
+
+        int start = (page - 1) * limit;
+        int end = start + limit;
+        if (end > dateList.size()) {
+            end = dateList.size();
+        }
+        List<Date> currentPageDataList = new ArrayList<>();
+        for (int i = start; i < end; i++) {
+            Date date = dateList.get(i);
+            currentPageDataList.add(date);
+        }
+
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<Date> resultPage = new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, limit, dateList.size());
+        resultPage.setRecords(currentPageDataList);
+        return resultPage;
+    }
+
+    /**
+     * 将Date日期（yyyy-MM-dd HH:mm）转换为DateTime
+     */
+    private DateTime getDateTime(Date date, String timeString) {
+        String dateTimeString = new DateTime(date).toString("yyyy-MM-dd") + " " + timeString;
+        DateTime dateTime = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm").parseDateTime(dateTimeString);
+        return dateTime;
     }
 
     /**
      * 根据日期获取周几数据
+     *
      * @param dateTime
      * @return
      */
