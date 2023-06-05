@@ -1,5 +1,7 @@
 package com.cj.yygh.msm.servie;
 
+import com.cj.yygh.vo.msm.MsmVo;
+
 /**
  * MsmService
  * description:
@@ -8,4 +10,6 @@ package com.cj.yygh.msm.servie;
  */
 public interface MsmService {
     boolean sendCode(String phone);
+
+    void send(MsmVo msmVo);
 }

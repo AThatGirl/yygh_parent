@@ -3,6 +3,7 @@ package com.cj.yygh.msm.servie.impl;
 import com.cj.yygh.msm.servie.MsmService;
 import com.cj.yygh.msm.utils.HttpUtils;
 import com.cj.yygh.msm.utils.RandomUtil;
+import com.cj.yygh.vo.msm.MsmVo;
 import org.apache.http.HttpResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -74,5 +75,13 @@ public class MsmServiceImpl implements MsmService {
             e.printStackTrace();
             return false;
         }
+    }
+
+    @Override
+    public void send(MsmVo msmVo) {
+        String phone = msmVo.getPhone();
+//        this.sendCode(phone);
+        System.out.println("发送短信");
+
     }
 }

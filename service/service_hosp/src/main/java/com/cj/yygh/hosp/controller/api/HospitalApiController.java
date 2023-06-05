@@ -8,8 +8,10 @@ import com.cj.yygh.model.hosp.Schedule;
 import com.cj.yygh.result.R;
 import com.cj.yygh.vo.hosp.DepartmentVo;
 import com.cj.yygh.vo.hosp.HospitalQueryVo;
+import com.cj.yygh.vo.hosp.ScheduleOrderVo;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +38,12 @@ public class HospitalApiController {
 
     @Autowired
     private ScheduleService scheduleService;
+
+    @ApiOperation(value = "根据排班id获取预约下单数据")
+    @GetMapping("/inner/getScheduleOrderVo/{scheduleId}")
+    public ScheduleOrderVo getScheduleOrderVo(@PathVariable("scheduleId") String scheduleId) {
+        return scheduleService.getScheduleOrderVo(scheduleId);
+    }
 
     @ApiOperation("根据排班id查询排班信息")
     @GetMapping("/getSchedule/{id}")

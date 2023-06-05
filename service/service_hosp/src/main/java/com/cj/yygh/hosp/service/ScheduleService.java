@@ -1,7 +1,9 @@
 package com.cj.yygh.hosp.service;
 
 import com.cj.yygh.model.hosp.Schedule;
+import com.cj.yygh.vo.hosp.ScheduleOrderVo;
 import com.cj.yygh.vo.hosp.ScheduleQueryVo;
+import com.cj.yygh.vo.order.OrderMqVo;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
@@ -24,4 +26,7 @@ public interface ScheduleService {
 
     Schedule getScheduleInfo(String scheduleId);
 
+    ScheduleOrderVo getScheduleOrderVo(String scheduleId);
+
+    void update(OrderMqVo orderMqVo);
 }
