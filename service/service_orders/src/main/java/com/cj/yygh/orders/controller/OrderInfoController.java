@@ -8,6 +8,8 @@ import com.cj.yygh.model.order.OrderInfo;
 import com.cj.yygh.orders.service.OrderInfoService;
 import com.cj.yygh.orders.utils.AuthContextHolder;
 import com.cj.yygh.result.R;
+import com.cj.yygh.vo.order.OrderCountQueryVo;
+import com.cj.yygh.vo.order.OrderCountVo;
 import com.cj.yygh.vo.order.OrderQueryVo;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -16,6 +18,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
+import java.util.Map;
 
 /**
  * <p>
@@ -32,6 +36,20 @@ public class OrderInfoController {
 
     @Autowired
     private OrderInfoService orderInfoService;
+
+
+
+    @PostMapping("/countOrderInfoByQuery")
+    public Map<String, Object>  countOrderInfoByQuery(@RequestBody OrderCountQueryVo orderCountQueryVo){
+        return orderInfoService.countOrderInfoByQuery(orderCountQueryVo);
+    }
+
+    @ApiOperation("取消预约")
+    @GetMapping("/auth/cancelOrder/{orderId}")
+    public R cancelOrder(@PathVariable("orderId") Integer orderId){
+        boolean flag = orderInfoService.cancelOrder(orderId);
+        return R.ok().data("flag", flag);
+    }
 
 
     //根据订单id查询订单详情

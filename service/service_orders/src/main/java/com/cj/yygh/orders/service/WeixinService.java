@@ -12,4 +12,6 @@ public interface WeixinService {
     Map createNative(Long orderId);
 
     Map<String, String> queryPayStatus(Long orderId);
+
+    boolean refund(Integer orderId);
 }

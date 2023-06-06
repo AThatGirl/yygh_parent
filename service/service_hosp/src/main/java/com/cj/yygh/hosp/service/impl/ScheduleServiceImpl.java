@@ -247,17 +247,17 @@ public class ScheduleServiceImpl implements ScheduleService {
         ScheduleOrderVo scheduleOrderVo = new ScheduleOrderVo();
         //排班信息
         Schedule schedule = this.getScheduleInfo(scheduleId);
-        if(null == schedule) {
+        if (null == schedule) {
             throw new YyghException();
         }
         //获取预约规则信息
         Hospital hospital = hospitalService.findByHoscode(schedule.getHoscode());
-        if(null == hospital) {
+        if (null == hospital) {
             throw new YyghException();
         }
 
         BookingRule bookingRule = hospital.getBookingRule();
-        if(null == bookingRule) {
+        if (null == bookingRule) {
             throw new YyghException();
         }
 
@@ -289,9 +289,16 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public void update(OrderMqVo orderMqVo) {
-        Schedule schedule = scheduleRepository.findById(orderMqVo.getScheduleId()).get();
-        schedule.setReservedNumber(orderMqVo.getReservedNumber());
-        schedule.setAvailableNumber(orderMqVo.getAvailableNumber());
+
+        Schedule schedule = null;
+        if (orderMqVo.getAvailableNumber() != null) {
+            schedule = scheduleRepository.findById(orderMqVo.getScheduleId()).get();
+            schedule.setReservedNumber(orderMqVo.getReservedNumber());
+            schedule.setAvailableNumber(orderMqVo.getAvailableNumber());
+        } else {
+            schedule = scheduleRepository.findByHosScheduleId(orderMqVo.getScheduleId());
+            schedule.setAvailableNumber(schedule.getAvailableNumber() + 1);
+        }
         scheduleRepository.save(schedule);
     }
 

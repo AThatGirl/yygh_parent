@@ -37,6 +37,10 @@ spring:
           uri: lb://service-orders
           predicates:
             - Path=/*/order/** # 路径匹配
+        - id: service-sta
+          uri: lb://service-sta
+          predicates:
+            - Path=/*/statistics/** # 路径匹配
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848

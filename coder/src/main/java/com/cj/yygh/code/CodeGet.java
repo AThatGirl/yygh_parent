@@ -30,7 +30,7 @@ public class CodeGet {
 
         // 3、数据源配置
         DataSourceConfig dsc = new DataSourceConfig();
-        dsc.setUrl("jdbc:mysql://192.168.111.115:3306/yygh_order..");
+        dsc.setUrl("jdbc:mysql://192.168.111.115:3306/yygh_order");
         dsc.setDriverName("com.mysql.jdbc.Driver");
         dsc.setUsername("root");
         dsc.setPassword("root");
@@ -51,7 +51,7 @@ public class CodeGet {
         StrategyConfig strategy = new StrategyConfig();
 
         //设置表名
-        strategy.setInclude("order_info");
+        strategy.setInclude("refund_info");
 
         strategy.setNaming(NamingStrategy.underline_to_camel);//数据库表映射到实体的命名策略
 

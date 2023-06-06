@@ -2,6 +2,10 @@ package com.cj.yygh.orders.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.cj.yygh.model.order.OrderInfo;
+import com.cj.yygh.vo.order.OrderCountQueryVo;
+import com.cj.yygh.vo.order.OrderCountVo;
+
+import java.util.List;
 
 /**
  * <p>
@@ -13,4 +17,5 @@ import com.cj.yygh.model.order.OrderInfo;
  */
 public interface OrderInfoMapper extends BaseMapper<OrderInfo> {
 
+    List<OrderCountVo> countOrderInfoByQuery(OrderCountQueryVo orderCountQueryVo);
 }

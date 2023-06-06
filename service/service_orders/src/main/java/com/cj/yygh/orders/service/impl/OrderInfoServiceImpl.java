@@ -4,14 +4,18 @@ import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.cj.yygh.enums.OrderStatusEnum;
+import com.cj.yygh.enums.PaymentStatusEnum;
 import com.cj.yygh.exception.YyghException;
 import com.cj.yygh.hosp.client.HospitalFeignClient;
 import com.cj.yygh.model.order.OrderInfo;
+import com.cj.yygh.model.order.PaymentInfo;
 import com.cj.yygh.model.user.Patient;
 import com.cj.yygh.orders.mapper.OrderInfoMapper;
 import com.cj.yygh.orders.service.OrderInfoService;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.cj.yygh.orders.service.PaymentService;
+import com.cj.yygh.orders.service.WeixinService;
 import com.cj.yygh.orders.utils.HttpRequestHelper;
 import com.cj.yygh.rabbit.MqConst;
 import com.cj.yygh.rabbit.RabbitService;
@@ -19,6 +23,8 @@ import com.cj.yygh.result.R;
 import com.cj.yygh.user.client.PatientFeignClient;
 import com.cj.yygh.vo.hosp.ScheduleOrderVo;
 import com.cj.yygh.vo.msm.MsmVo;
+import com.cj.yygh.vo.order.OrderCountQueryVo;
+import com.cj.yygh.vo.order.OrderCountVo;
 import com.cj.yygh.vo.order.OrderMqVo;
 import com.cj.yygh.vo.order.OrderQueryVo;
 import org.joda.time.DateTime;
@@ -27,9 +33,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -51,6 +56,12 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
 
     @Autowired
     private RabbitService rabbitService;
+
+    @Autowired
+    private WeixinService weixinService;
+
+    @Autowired
+    private PaymentService paymentService;
 
 
     @Override
@@ -198,6 +209,86 @@ public class OrderInfoServiceImpl extends ServiceImpl<OrderInfoMapper, OrderInfo
     public OrderInfo getOrderInfo(Long orderId) {
         OrderInfo orderInfo = baseMapper.selectById(orderId);
         return this.packOrderInfo(orderInfo);
+    }
+
+    @Override
+    public boolean cancelOrder(Integer orderId) {
+        //判断当前时间是否已经过了平台规定的退号截止时间
+        OrderInfo orderInfo = baseMapper.selectById(orderId);
+        DateTime dateTime = new DateTime(orderInfo.getQuitTime());
+        if (dateTime.isBeforeNow()) {
+            throw new YyghException(20001, "已过退号截止时间");
+        }
+        Map<String, Object> reqMap = new HashMap<>();
+        reqMap.put("hoscode", orderInfo.getHoscode());
+        reqMap.put("hosRecordId", orderInfo.getHosRecordId());
+        reqMap.put("timestamp", HttpRequestHelper.getTimestamp());
+        //reqMap.put("sign", "");
+        //2.当前时间没有过退号截止时间，平台系统调用医院系统，确认能否取消预约
+
+        JSONObject jsonObject = HttpRequestHelper.sendRequest(reqMap, "http://localhost:9998/order/updateCancelStatus");
+        //如果医院返回不能取消，抛出异常
+        if (jsonObject.getInteger("code") != 200) {
+            throw new YyghException(20001, "不能取消");
+        } else {
+            //如果可以取消，取消
+            boolean flag = weixinService.refund(orderId);
+            if (!flag){
+                throw new YyghException(20001, "退款失败");
+            }
+
+
+
+
+            //更新订单表状态，支付记录表的支付状态
+            orderInfo.setOrderStatus(OrderStatusEnum.CANCLE.getStatus());
+            this.updateById(orderInfo);
+            //更新支付记录状态。
+            QueryWrapper<PaymentInfo> queryWrapper=new QueryWrapper<PaymentInfo>();
+            queryWrapper.eq("order_id",orderId);
+            PaymentInfo paymentInfo = paymentService.getOne(queryWrapper);
+            paymentInfo.setPaymentStatus(PaymentStatusEnum.REFUND.getStatus()); //退款
+            paymentInfo.setUpdateTime(new Date());
+            paymentService.updateById(paymentInfo);
+            //更新排班数据+1，发送短信提示
+            //发送mq信息更新预约数 我们与下单成功更新预约数使用相同的mq信息，不设置可预约数与剩余预约数，接收端可预约数减1即可
+            OrderMqVo orderMqVo = new OrderMqVo();
+            orderMqVo.setScheduleId(orderInfo.getScheduleId());
+            //短信提示
+            MsmVo msmVo = new MsmVo();
+            msmVo.setPhone(orderInfo.getPatientPhone());
+            orderMqVo.setMsmVo(msmVo);
+            rabbitService.sendMessage(MqConst.EXCHANGE_DIRECT_ORDER, MqConst.ROUTING_ORDER, orderMqVo);
+
+            return true;
+        }
+
+
+    }
+
+    @Override
+    public void patientTips() {
+        String string = new DateTime().toString("yyyy-MM-dd");
+        List<OrderInfo> list = baseMapper.selectList(new QueryWrapper<OrderInfo>().eq("reserve_date", string).ne("order_status", OrderStatusEnum.CANCLE.getStatus()));
+        for (OrderInfo orderInfo : list) {
+            MsmVo msmVo = new MsmVo();
+            msmVo.setPhone(orderInfo.getPatientPhone());
+
+            rabbitService.sendMessage(MqConst.EXCHANGE_DIRECT_MSM, MqConst.ROUTING_MSM_ITEM, msmVo);
+
+        }
+
+    }
+
+    @Override
+    public Map<String, Object>  countOrderInfoByQuery(OrderCountQueryVo orderCountQueryVo) {
+        List<OrderCountVo> orderCountVos = baseMapper.countOrderInfoByQuery(orderCountQueryVo);
+        List<String> dataList = orderCountVos.stream().map(OrderCountVo::getReserveDate).collect(Collectors.toList());
+        List<Integer> countList = orderCountVos.stream().map(OrderCountVo::getCount).collect(Collectors.toList());
+        Map<String, Object> map = new HashMap<>();
+        map.put("dateList", dataList);
+        map.put("countList", countList);
+        return map;
     }
 
     private OrderInfo packOrderInfo(OrderInfo orderInfo) {
