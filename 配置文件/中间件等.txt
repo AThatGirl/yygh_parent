@@ -1,0 +1,4 @@
+redis
+nacos
+mongodb
+rabbitmq
